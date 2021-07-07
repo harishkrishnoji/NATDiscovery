@@ -11,6 +11,9 @@ license = "PROPRIETARY"
 
 [tool.poetry.dependencies]
 python = "^3.8"
+helper-fts = "^1.0.6"
+pa-pano = "^1.0.0"
+cp-mgmt = "^1.0.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.4.1"
