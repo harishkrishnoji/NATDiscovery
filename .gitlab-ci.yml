@@ -1,0 +1,58 @@
+---
+stages:
+  - test
+  - publish
+  - master
+  - clean
+
+variables:
+  RELEASE_IMAGE: ${CI_REGISTRY_IMAGE}:latest
+  COMMIT_IMAGE: ${CI_REGISTRY_IMAGE}:$CI_COMMIT_SHORT_SHA
+  COMPOSE_PROJECT_NAME: $CI_PROJECT_NAME_$CI_COMMIT_SHORT_SHA
+
+# CI Pipeline stages in this file are pinned to a runner
+# with the tag of `lab`.  If you are wanting to use the JC
+# runner please remove the `tags` key from each stage.  If
+# you would like to change the runner to another tagged
+# runner please replace the `lab` tag in each stage with
+# the appropriate runner tag
+test:
+  stage: test
+  tags:
+    - FTS_LAB_CONCURRENT
+  script:
+    - docker-compose build test
+    - docker-compose up --build --force-recreate --quiet-pull --exit-code-from test test
+
+publish:
+  stage: publish
+  tags:
+    - FTS_LAB_CONCURRENT
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker-compose build cli
+    # Push short sha tagged image
+    - docker push $COMMIT_IMAGE
+
+master:
+  stage: master
+  tags:
+    - FTS_LAB_CONCURRENT
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker tag $COMMIT_IMAGE $RELEASE_IMAGE
+    # Push latest image
+    - docker push $RELEASE_IMAGE
+  only:
+    - master
+
+clean:
+  stage: clean
+  tags:
+    - FTS_LAB_CONCURRENT
+  script:
+    - docker-compose down --rmi local --remove-orphans --volumes || true
+    - docker rmi -f $COMMIT_IMAGE $RELEASE_IMAGE || true
+  when: always

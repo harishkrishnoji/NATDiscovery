@@ -1,0 +1,20 @@
+---
+version: "3.8"
+services:
+  test:
+    build:
+      target: test
+      context: .
+
+  cli:
+    image: ${COMMIT_IMAGE:-local/ofd-global-nat:cli}
+    build:
+      target: cli
+      context: .
+    environment:
+      RD_OPTION_CPUSER: $RD_OPTION_CPUSER
+      RD_OPTION_CPPWD: $RD_OPTION_CPPWD
+      RD_OPTION_PAUSER: $RD_OPTION_PAUSER
+      RD_OPTION_PAPWD: $RD_OPTION_PAPWD
+    command: global_nat.py
+    tty: true

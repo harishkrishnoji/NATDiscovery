@@ -1,0 +1,9 @@
+*.tar.gz
+__pycache__/
+*.pyc
+.vscode/
+env/
+.env
+*.swp
+*.code-workspace
+*.egg-info/
