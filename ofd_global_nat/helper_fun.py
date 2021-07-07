@@ -338,9 +338,14 @@ def get_nat_lst(pan, xpaths, site, dg):
     if resp["response"]["result"] is not None:
         if resp["response"]["result"]["nat"]["rules"] is not None:
             if resp["response"]["result"]["nat"]["rules"]["entry"] is not None:
-                for rule in resp["response"]["result"]["nat"]["rules"]["entry"]:
-                    if isinstance(rule, dict):
-                        append_rule(rule, site, dg)
+                ru = resp["response"]["result"]["nat"]["rules"]["entry"]
+                if isinstance(ru, list):
+                    for rule in ru:
+                        if "disabled" not in rule:
+                            append_rule(rule, site, dg)
+                else:
+                    if "disabled" not in ru:
+                        append_rule(ru, site, dg)
 
 
 def get_address(pan, xpaths):
