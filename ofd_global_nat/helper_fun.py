@@ -56,7 +56,7 @@ def get_cma_packages_list(cp):
                 install_targets = []
                 for device in pkg_list["installation-targets"]:
                     install_targets.append(device["name"])
-            target = ", ".join(install_targets)
+                target = ", ".join(install_targets)
             table_data.append(get_nat_rulebase(cp, pkg_list["name"], target))
         return table_data
 
