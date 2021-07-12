@@ -79,14 +79,15 @@ if __name__ == "__main__":
     get_gp_lst(pan, "/config/shared/address-group")
     PAN_DG = "/config/devices/entry[@name='localhost.localdomain']/device-group/entry"
     for dGroup in d_group:
-        logger.info(f"\t\tDevice Group : {dGroup}")
-        xobj = f"{PAN_DG}[@name='{dGroup}']/address"
-        xgrp = f"{PAN_DG}[@name='{dGroup}']/address-group"
+        dgrp = dGroup["device"]
+        logger.info(f"\t\tDevice Group : {dgrp}")
+        xobj = f"{PAN_DG}[@name='{dgrp}']/address"
+        xgrp = f"{PAN_DG}[@name='{dgrp}']/address-group"
         get_address(pan, xobj)
         get_gp_lst(pan, xgrp)
-        xpath = f"{PAN_DG}[@name='{dGroup}']/pre-rulebase/nat"
+        xpath = f"{PAN_DG}[@name='{dgrp}']/pre-rulebase/nat"
         get_nat_lst(pan, xpath, pano["site"], dGroup)
-        xpath = f"{PAN_DG}[@name='{dGroup}']/post-rulebase/nat"
+        xpath = f"{PAN_DG}[@name='{dgrp}']/post-rulebase/nat"
         get_nat_lst(pan, xpath, pano["site"], dGroup)
     email_data.append(f"Script end time (Panorama {pano['site']}) : {datetime.datetime.now()}")
     logger.info("Completed pulling NATs from CheckPoint and PaloAlto devices.")
