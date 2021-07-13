@@ -261,10 +261,13 @@ def get_device_group_lst(pan):
     resp = pan.get_pam_data(**kwargs)
     for dev in resp["response"]["result"]["devicegroups"]["entry"]:
         if "devices" in dev:
-            dev1 = []
-            for j in dev["devices"]["entry"]:
-                dev1.append(j["hostname"])
-            dg_lst.append({"device": dev["@name"], "hostname": ", ".join(dev1)})
+            if isinstance(dev["devices"]["entry"], list):
+                dev1 = []
+                for j in dev["devices"]["entry"]:
+                    dev1.append(j["hostname"])
+                dg_lst.append({"device": dev["@name"], "hostname": ", ".join(dev1)})
+            else:
+                dg_lst.append({"device": dev["@name"], "hostname": dev["devices"]["entry"]["hostname"]})
     return dg_lst
 
 
