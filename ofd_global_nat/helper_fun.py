@@ -71,10 +71,17 @@ def parse_data(cp, pkg, cp_data, trg):
     """
     uid_map = {}
     table_data = []
-    if "objects-dictionary" in cp_data:
-        for obj_dict in cp_data["objects-dictionary"]:
-            if "host" in obj_dict["type"]:
-                uid_map[obj_dict["uid"]] = obj_dict["ipv4-address"]
+    # if "objects-dictionary" in cp_data:
+    if cp_data.get("objects-dictionary"):
+        # for obj_dict in cp_data["objects-dictionary"]:
+        for obj_dict in cp_data.get("objects-dictionary"):
+            # if "host" in obj_dict["type"]:
+            if "host" in obj_dict.get("type"):
+                if obj_dict.get("ipv4-address"):
+                    # uid_map[obj_dict["uid"]] = obj_dict["ipv4-address"]
+                    uid_map[obj_dict.get("uid")] = obj_dict.get("ipv4-address")
+                else:
+                    logger.info(f"{obj_dict}")
             elif "address-range" in obj_dict["type"]:
                 uid_map[obj_dict["uid"]] = f"{obj_dict['ipv4-address-first']}-{obj_dict['ipv4-address-last']}"
             elif "network" in obj_dict["type"]:
