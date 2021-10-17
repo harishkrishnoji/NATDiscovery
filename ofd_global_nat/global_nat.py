@@ -12,7 +12,8 @@ from pa_pano.client import PAN_Client
 from helper_fts.email import send_email
 from helper_fts.fts_sane import *
 from helper_fts.logger import get_logger
-from helper_fun import *
+from cp_helper import *
+from palo_helper import *
 
 printnat = {}
 table_data = []
@@ -38,7 +39,6 @@ if __name__ == "__main__":
     #################################
     #         Checkpoint            #
     #################################
-
     ofd = {
         "username": os.environ.get("RD_OPTION_CPUSER"),
         "password": os.environ.get("RD_OPTION_CPPWD"),
