@@ -4,7 +4,7 @@ import requests
 
 logger = get_logger("OFD NAT")
 outnat = []
-obj_dict = {}
+pobj_dict = {}
 tag_lst = []
 
 
@@ -29,37 +29,42 @@ def get_gp_lst(pan, xpaths):
     if resp["response"]["result"] is None or resp["response"]["result"]["address-group"] is None:
         pass
     else:
-        for obj in resp["response"]["result"]["address-group"]["entry"]:
-            if "static" in obj:
-                obj1_lst = []
-                if obj != "static":
-                    if isinstance(obj["static"]["member"], str):
-                        if obj["static"]["member"] in obj_dict.keys():
-                            obj_dict[obj["@name"]] = obj_dict[obj["static"]["member"]]
-                        else:
-                            obj_dict[obj["@name"]] = obj["static"]["member"]
-                    else:
-                        for member in obj["static"]["member"]:
-                            if member in obj_dict.keys():
-                                obj1_lst.append(obj_dict[member])
-                            else:
-                                obj1_lst.append(member)
-                        obj_dict[obj["@name"]] = ",".join(obj1_lst)
-            elif "dynamic" in obj:
-                obj1_lst = []
-                tmp = []
-                for i in tag_lst:
-                    if obj != "dynamic":
-                        if " or " in obj["dynamic"]["filter"]:
-                            tmp = obj["dynamic"]["filter"].split(" or ")
-                        else:
-                            tmp = obj["dynamic"]["filter"].split(" and ")
-                        if obj["dynamic"]["filter"].strip("'") in i["tag"]:
-                            obj1_lst.append(i["address"])
-                        for x in tmp:
-                            if str(x).strip("'") in i["tag"]:
-                                obj1_lst.append(i["address"])
-                        obj_dict[obj["@name"]] = ",".join(obj1_lst)
+        if isinstance(resp["response"]["result"]["address-group"]["entry"], list):
+            for obj in resp["response"]["result"]["address-group"]["entry"]:
+                fun_gp(obj)
+        else:
+            fun_gp(resp["response"]["result"]["address-group"]["entry"])
+
+
+def fun_gp(obj):
+    if obj.get("static"):
+        obj1_lst = []
+        if isinstance(obj["static"]["member"], str):
+            if obj["static"]["member"] in pobj_dict.keys():
+                pobj_dict[obj["@name"]] = pobj_dict[obj["static"]["member"]]
+            else:
+                pobj_dict[obj["@name"]] = obj["static"]["member"]
+        else:
+            for member in obj["static"]["member"]:
+                if member in pobj_dict.keys():
+                    obj1_lst.append(pobj_dict[member])
+                else:
+                    obj1_lst.append(member)
+            pobj_dict[obj["@name"]] = ",".join(obj1_lst)
+    elif "dynamic" in obj:
+        obj1_lst = []
+        tmp = []
+        for i in tag_lst:
+            if " or " in obj["dynamic"]["filter"]:
+                tmp = obj["dynamic"]["filter"].split(" or ")
+            else:
+                tmp = obj["dynamic"]["filter"].split(" and ")
+            if obj["dynamic"]["filter"].strip("'") in i["tag"]:
+                obj1_lst.append(i["address"])
+            for x in tmp:
+                if str(x).strip("'") in i["tag"]:
+                    obj1_lst.append(i["address"])
+            pobj_dict[obj["@name"]] = ",".join(obj1_lst)
 
 
 def search_list(source):
@@ -71,11 +76,11 @@ def search_list(source):
     s_lst = []
     if isinstance(source, list):
         for i in source:
-            if i in obj_dict.keys():
-                s_lst.append(obj_dict[i])
+            if i in pobj_dict.keys():
+                s_lst.append(pobj_dict[i])
     else:
-        if source in obj_dict.keys():
-            s_lst.append(obj_dict[source])
+        if source in pobj_dict.keys():
+            s_lst.append(pobj_dict[source])
     return s_lst
 
 
@@ -213,22 +218,22 @@ def get_address(pan, xpaths):
         if isinstance(resp["response"]["result"]["address"]["entry"], list):
             for obj in resp["response"]["result"]["address"]["entry"]:
                 if "ip-netmask" in obj:
-                    obj_dict[obj["@name"]] = obj["ip-netmask"]
+                    pobj_dict[obj["@name"]] = obj["ip-netmask"]
                     if "tag" in obj and obj["tag"] is not None:
                         tag_lst.append(
                             {"name": obj["@name"], "address": obj["ip-netmask"], "tag": obj["tag"]["member"]}
                         )
                 elif "ip-range" in obj:
-                    obj_dict[obj["@name"]] = obj["ip-range"]
+                    pobj_dict[obj["@name"]] = obj["ip-range"]
                     if "tag" in obj:
                         tag_lst.append({"name": obj["@name"], "address": obj["ip-range"], "tag": obj["tag"]["member"]})
                 elif "fqdn" in obj:
-                    obj_dict[obj["@name"]] = obj["fqdn"]
+                    pobj_dict[obj["@name"]] = obj["fqdn"]
                     if "tag" in obj:
                         tag_lst.append({"name": obj["@name"], "address": obj["fqdn"], "tag": obj["tag"]["member"]})
         else:
             if "ip-netmask" in resp["response"]["result"]["address"]["entry"]:
-                obj_dict[resp["response"]["result"]["address"]["entry"]["@name"]] = resp["response"]["result"][
+                pobj_dict[resp["response"]["result"]["address"]["entry"]["@name"]] = resp["response"]["result"][
                     "address"
                 ]["entry"]["ip-netmask"]
                 if "tag" in resp["response"]["result"]["address"]["entry"]:
@@ -240,7 +245,7 @@ def get_address(pan, xpaths):
                         }
                     )
             elif "ip-range" in resp["response"]["result"]["address"]["entry"]:
-                obj_dict[resp["response"]["result"]["address"]["entry"]["@name"]] = resp["response"]["result"][
+                pobj_dict[resp["response"]["result"]["address"]["entry"]["@name"]] = resp["response"]["result"][
                     "address"
                 ]["entry"]["ip-range"]
                 if "tag" in resp["response"]["result"]["address"]["entry"]:
