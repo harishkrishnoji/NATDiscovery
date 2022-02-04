@@ -32,14 +32,15 @@ def cp_master(env):
     cp = CheckPointMGMTClient(**data)
     cpfun = CP_NAT_Function(cp, env)
     log.info("Gathering Domain...")
-    cpfun._domain_list()
+    cpfun.domain_lst()
     log.info("Gathering Gateways...")
-    cpfun._gateways_list()
-    cpfun._json_file(cpfun.gateways_list, "DEVICE")
+    cpfun.gateways()
+    cpfun.jsonfile(cpfun.gateways_list, "DEVICE")
     log.info("Writting Devices to DB...")
     for device in cpfun.gateways_list:
         device.pop("_id", None)
         db.host_collection(device)
+    # NautobotClient(cpfun.gateways_list)
     # resp = uploadfile(cpfun.filename)
     # log.info(resp.strip())
     for domain in cpfun.domain_list:
@@ -47,13 +48,12 @@ def cp_master(env):
             log.info(f"Gathering NAT Rules : {domain}...")
             cpfun.cp = CheckPointMGMTClient(**data, domain=domain)
             cpfun._cma_packages()
-    cpfun._json_file(cpfun.nat_rules, "NAT")
+    cpfun.jsonfile(cpfun.nat_rules, "NAT")
     # resp = uploadfile(cpfun.filename)
     # log.info(resp.strip())
     log.info("Writting NAT Rules to DB...")
     for rule in cpfun.nat_rules:
         device.pop("_id", None)
         db.nat_collection(rule)
-    # NautobotClient(cpfun.gateways_list)
     log.info("Job done")
     

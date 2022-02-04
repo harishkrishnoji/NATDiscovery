@@ -3,13 +3,8 @@ import os
 import time
 import json
 from xmltodict import parse
-from helper.local_helper import log, MongoDB, uploadfile
+from helper.local_helper import log
 from helper.variables_firewall import PALO_DEVICE_FIELDS
-
-dbp = os.environ.get("RD_OPTION_DB_PWD")
-dbu = os.environ.get("RD_OPTION_DB_USER")
-dbh = os.environ.get("RD_OPTION_DB_HOST")
-db = MongoDB(dbu, dbp, dbh)
 
 
 class Palo_NAT_Function:
@@ -29,7 +24,7 @@ class Palo_NAT_Function:
         self.rules = []
         self.filename = ""
 
-    def _firewall_devices(self):
+    def firewall_devices(self):
         """Get firewall device list."""
         devices = parse(self.pan.op(cmd="show devices all", xml=True))
         for device in devices["response"]["result"]["devices"].get("entry"):
@@ -44,14 +39,7 @@ class Palo_NAT_Function:
                 else:
                     device_info.update({field:device.get(field)})
             self.device_list.append(device_info)
-        self._json_file(self.device_list, "DEVICE")
  
-    def _json_file(self, data, type):
-        """Write to JSON for reference."""
-        self.filename = f"RUNDECK_OFD_PALO_{type}-{time.strftime('%m%d%Y-%H%M')}.json"
-        with open(self.filename, "w+") as json_file:
-            json.dump(data, json_file, indent=4, separators=(",", ": "), sort_keys=True)
-
     def _rule_address_parser(self, item):
         """NAT Rule Address parser.
 
@@ -69,7 +57,6 @@ class Palo_NAT_Function:
                 address.append(addr)
         return address
 
-
     def _nat_policy_addresses(self, rule, device):
         """NAT Policy Addresses."""
         rule_data = {}
@@ -83,7 +70,6 @@ class Palo_NAT_Function:
             rule_data["Firewall-Name"] = device
             rule_data["Firewall"] = "PaloAlto"
         return rule_data
-
 
     def _rule_translate_to_parser(self, trans_item, rule_data):
         if "src" in trans_item:
@@ -113,7 +99,6 @@ class Palo_NAT_Function:
             for rule in self.nat_rules:
                 if rule.get("name") == rule_data.get("name"):
                     rule.update(rule_data)
-                    db.nat_collection(rule)
 
     def _get_nat_policy(self, cmd):
         """NAT Policy"""
@@ -132,12 +117,13 @@ class Palo_NAT_Function:
                         self._nat_policy_translate(rule)
                     self.rules.extend(self.nat_rules)
 
-    def _nat_policy(self):
+    def jsonfile(self, data, type):
+        """Write to JSON for reference."""
+        self.filename = f"RUNDECK_OFD_PALO_{type}-{time.strftime('%m%d%Y-%H%M')}.json"
+        with open(self.filename, "w+") as json_file:
+            json.dump(data, json_file, indent=4, separators=(",", ": "), sort_keys=True)
+
+    def nat_policy(self):
         """NAT Policy."""
         self._get_nat_policy("show running nat-policy-addresses")
         self._get_nat_policy("show running nat-policy")
-        for device in self.device_list:
-            db.host_collection(device)
-        self._json_file(self.rules, "NAT")
-        resp = uploadfile(self.filename)
-        log.info(resp.strip())

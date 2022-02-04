@@ -25,7 +25,7 @@ class CP_NAT_Function:
         self.checkpoint_host = {}
         self.filename = ""
 
-    def _domain_list(self):
+    def domain_lst(self):
         """This function will pull all the domain from Checkpoint."""
         domains = self.cp.show_domains()
         domains_json = json.loads(domains.text)
@@ -155,7 +155,7 @@ class CP_NAT_Function:
             elif mem.get("type") == "group":
                 self._get_group(mem["name"])
 
-    def _gateways_list(self):
+    def gateways(self):
         """This function will pull all the gatwats from Checkpoint."""
         params = {"data": {"limit": 500, "offset": 0, "details-level": "full"}}
         gateways = self.cp.get_cp_data("show-gateways-and-servers", **params)
@@ -191,7 +191,7 @@ class CP_NAT_Function:
                     device["version"] = dev.get("version")
                     device["network-security-blades"] = dev.get("network-security-blades")
 
-    def _json_file(self, data, type):
+    def jsonfile(self, data, type):
         """Write to JSON for reference."""
         self.filename = f"RUNDECK_{self.env}_CP_{type}-{time.strftime('%m%d%Y-%H%M')}.json"
         with open(self.filename, "w+") as json_file:
