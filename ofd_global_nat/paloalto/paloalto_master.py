@@ -3,7 +3,7 @@ import os
 from panos import panorama
 from helper.local_helper import log, MongoDB, uploadfile
 from paloalto.paloalto_fun import Palo_NAT_Function
-from helper_fts.fts_sane import CP_OFD_URL
+# from helper_fts.fts_sane import CP_OFD_URL
 
 dbp = os.environ.get("RD_OPTION_DB_PWD")
 dbu = os.environ.get("RD_OPTION_DB_USER")

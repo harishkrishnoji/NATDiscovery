@@ -4,9 +4,9 @@
 import os
 import requests
 import pynautobot
-from helper.variables_nautobot import NAUTOBOT_DEVICE_REGION, NAUTOBOT_DEVICE_REGION_OFS
+from helper.variables_nautobot import NAUTOBOT_DEVICE_REGION, NAUTOBOT_DEVICE_REGION_OFS, DEVICE_ROLE
 from helper.local_helper import log
-from datetime import datetime
+# from datetime import datetime
 
 requests.urllib3.disable_warnings()
 
@@ -94,7 +94,7 @@ class SANE_DEVICE:
         """Create Device Role object in core Organization module."""
         device_role = device_roles_attr.get(name="firewall")
         if not device_role:
-            data = {"name": "firewall", "slug": "firewall", "description": "CheckPoint and PaloAlto Firewall role"}
+            data = DEVICE_ROLE
             device_role = device_roles_attr.create(data)
         self.device_role_uuid = device_role.id
 

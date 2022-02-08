@@ -1,5 +1,4 @@
 """Palo Alto Rules - Log Profile Update."""
-import os
 import re
 import time
 import json
@@ -24,6 +23,7 @@ class CP_NAT_Function:
         self.nat_rules = []
         self.checkpoint_host = {}
         self.filename = ""
+        self.disregard_pkg = []
 
     def domain_lst(self):
         """This function will pull all the domain from Checkpoint."""
@@ -32,20 +32,21 @@ class CP_NAT_Function:
         for domain in domains_json.get("objects"):
             self.domain_list.append(domain.get("name"))
 
-    def _cma_packages(self):
+    def cma_packages(self):
         """This function will pull all the packages from specific Domain."""
         params = {"data": {"limit": 500, "offset": 0, "details-level": "full"}}
         packages = self.cp.get_cp_data("show-packages", **params)
         packages_json = json.loads(packages.text)
         for package in packages_json.get("packages"):
-            # This function will pull nat rulebase associated to the package in Domain/CMA
             self.package = package.get("name")
-            if "all" in package.get("installation-targets"):
-                self.target = "All"
-            else:
-                install_targets = [device.get("name") for device in package.get("installation-targets")]
-                self.target = ", ".join(install_targets)
-            self._nat_rulebase()
+            if self.package not in self.disregard_pkg:
+                # This function will pull nat rulebase associated to the package in Domain/CMA
+                if "all" in package.get("installation-targets"):
+                    self.target = "All"
+                else:
+                    install_targets = [device.get("name") for device in package.get("installation-targets")]
+                    self.target = ", ".join(install_targets)
+                self._nat_rulebase()
 
     def _nat_rulebase(self):
         """To pull NAT Rulebase for given Package."""
@@ -85,12 +86,12 @@ class CP_NAT_Function:
         nat_rule = {
             "name": rule.get("uid"),
             "Method": rule.get("method"),
-            "Original-Source": self.rulebase_objects.get(rule.get("original-source")),
-            "Translated-Source": self.rulebase_objects.get(rule.get("translated-source")),
-            "Original-Destination": self.rulebase_objects.get(rule.get("original-destination")),
-            "Translated-Destination": self.rulebase_objects.get(rule.get("translated-destination")),
+            "OriginalSource": self.rulebase_objects.get(rule.get("original-source")),
+            "TranslatedSource": self.rulebase_objects.get(rule.get("translated-source")),
+            "OriginalDestination": self.rulebase_objects.get(rule.get("original-destination")),
+            "TranslatedDestination": self.rulebase_objects.get(rule.get("translated-destination")),
             "Firewall": "CheckPoint",
-            "Firewall-Name": self.target,
+            "FirewallName": self.target,
             "Policy": self.package,
         }
         return nat_rule
@@ -130,7 +131,7 @@ class CP_NAT_Function:
             elif object.get("type") == "checkpoint-host":
                 self.rulebase_objects[object.get("uid")] = self.checkpoint_host[object.get("name")].get("address")
             elif object.get("type") == "CpmiGatewayPlain":
-                self.rulebase_objects[object.get("uid")] = self._parse_address(object.get("name"))          
+                self.rulebase_objects[object.get("uid")] = self._parse_address(object.get("name"))
             else:
                 # log.warning(f"Unknown Object type: {object}")
                 self.rulebase_objects[object.get("uid")] = {"name": object.get("name"), "type": object.get("type")}
@@ -165,16 +166,16 @@ class CP_NAT_Function:
                 device_info = {"environment": f"{self.env}-cp", "tags": [self.env]}
                 for field in CP_DEVICE_FIELDS:
                     if field == "ipv4-address":
-                        device_info.update({"mgmt_address":gateways.get(field)})
+                        device_info.update({"mgmt_address": gateways.get(field)})
                     elif field == "name":
-                        device_info.update({"hostname":gateways.get(field)})
+                        device_info.update({"hostname": gateways.get(field)})
                     elif field == "hardware":
-                        device_info.update({"model":gateways.get(field)})
+                        device_info.update({"model": gateways.get(field)})
                     else:
-                        device_info.update({field:gateways.get(field)})
+                        device_info.update({field: gateways.get(field)})
                 self.gateways_list.append(device_info)
             if gateways.get("type") == "checkpoint-host":
-                self.checkpoint_host.update({gateways.get("name"):{"address":gateways.get("ipv4-address")}})
+                self.checkpoint_host.update({gateways.get("name"): {"address": gateways.get("ipv4-address")}})
         log.info("Gateway parser...")
         self._gateway_parser()
 

@@ -1,10 +1,9 @@
 """Palo Alto Rules - Log Profile Update."""
-import os
 import time
 import json
 from xmltodict import parse
 from helper.local_helper import log
-from helper.variables_firewall import PALO_DEVICE_FIELDS
+from helper.variables_firewall import PALO_DEVICE_FIELDS, PALO_DEVICE_TO_QUERY
 
 
 class Palo_NAT_Function:
@@ -31,15 +30,15 @@ class Palo_NAT_Function:
             device_info = {"environment": f"{self.env}-palo-{self.site}", "tags": [self.env]}
             for field in PALO_DEVICE_FIELDS:
                 if field == "ha":
-                    device_info.update({field:device["ha"].get("state")})
+                    device_info.update({field: device["ha"].get("state")})
                 elif field == "vsys":
-                    device_info.update({field:device[field]["entry"].get("display-name")})
+                    device_info.update({field: device[field]["entry"].get("display-name")})
                 elif field == "ip-address":
-                    device_info.update({"mgmt_address":device.get(field)})
+                    device_info.update({"mgmt_address": device.get(field)})
                 else:
-                    device_info.update({field:device.get(field)})
+                    device_info.update({field: device.get(field)})
             self.device_list.append(device_info)
- 
+
     def _rule_address_parser(self, item):
         """NAT Rule Address parser.
 
@@ -64,10 +63,10 @@ class Palo_NAT_Function:
             if "index" in item:
                 rule_data["name"] = item[1:].split(";")[0].strip()
             elif "source" in item:
-                rule_data["Original-Source"] = self._rule_address_parser(item)
+                rule_data["OriginalSource"] = self._rule_address_parser(item)
             elif "destination" in item:
-                rule_data["Original-Destination"] = self._rule_address_parser(item)
-            rule_data["Firewall-Name"] = device
+                rule_data["OriginalDestination"] = self._rule_address_parser(item)
+            rule_data["FirewallName"] = device
             rule_data["Firewall"] = "PaloAlto"
         return rule_data
 
@@ -78,9 +77,9 @@ class Palo_NAT_Function:
                 if "static" in src_item or "dynamic" in src_item:
                     rule_data["Method"] = src_item[1:-1]
                 elif "." in src_item:
-                    rule_data["Translated-Source"] = src_item
+                    rule_data["TranslatedSource"] = src_item
         elif "dst" in trans_item:
-            rule_data["Translated-Destination"] = trans_item.split(" ")[1]
+            rule_data["TranslatedDestination"] = trans_item.split(" ")[1]
 
     def _nat_policy_translate(self, rule):
         """NAT Policy Translate"""
@@ -100,19 +99,22 @@ class Palo_NAT_Function:
                 if rule.get("name") == rule_data.get("name"):
                     rule.update(rule_data)
 
-    def _get_nat_policy(self, cmd):
+    def _get_nat_policy(self, cmd, device):
         """NAT Policy"""
-        for device in self.device_list:
-            if device.get("ha") == "passive" and device.get("connected") == "yes" and device.get("hostname") == "INBOM1FWLINT01B":
-                resp = self.pan.op(cmd=cmd, extra_qs=f"target={device.get('serial')}", xml=True)
-                if "addresses" in cmd:
-                    self.nat_rules = []
-                    xml_dict = parse(resp)['response']['result']
+        # for device in self.device_list:
+        if device.get("ha") == "passive" and device.get("connected") == "yes":
+            log.info(device.get("hostname"))
+            resp = self.pan.op(cmd=cmd, extra_qs=f"target={device.get('serial')}", xml=True)
+            if "addresses" in cmd:
+                self.nat_rules = []
+                xml_dict = parse(resp)['response']['result']
+                if xml_dict:
                     for rule in xml_dict.split("\n\n"):
                         rule_data = self._nat_policy_addresses(rule, device.get("hostname"))
                         self.nat_rules.append(rule_data)
-                else: 
-                    xml_dict = parse(resp)['response']['result']['member']
+            elif resp:
+                xml_dict = parse(resp)['response']['result']['member']
+                if xml_dict:
                     for rule in xml_dict.split("\n\n"):
                         self._nat_policy_translate(rule)
                     self.rules.extend(self.nat_rules)
@@ -125,5 +127,7 @@ class Palo_NAT_Function:
 
     def nat_policy(self):
         """NAT Policy."""
-        self._get_nat_policy("show running nat-policy-addresses")
-        self._get_nat_policy("show running nat-policy")
+        for device in self.device_list:
+            if "All" in PALO_DEVICE_TO_QUERY or device.get("hostname") in PALO_DEVICE_TO_QUERY:
+                self._get_nat_policy("show running nat-policy-addresses", device)
+                self._get_nat_policy("show running nat-policy", device)

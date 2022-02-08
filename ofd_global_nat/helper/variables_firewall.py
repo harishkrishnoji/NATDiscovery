@@ -7,6 +7,7 @@
 
 PALO_DEVICE_FIELDS = ['serial', 'connected', 'hostname', 'ip-address', 'model', 'sw-version', 'ha', 'multi-vsys', 'vsys']
 CP_DEVICE_FIELDS = ["name", "type", "operating-system", "hardware", "version", "ipv4-address", "network-security-blades"]
+DEVICE_ROLE = {"name": "firewall", "slug": "firewall", "description": "CheckPoint and PaloAlto Firewall role"}
 
 #########################################################################
 #   List of Devices to pull data from PAN / MDM
@@ -15,21 +16,4 @@ CP_DEVICE_FIELDS = ["name", "type", "operating-system", "hardware", "version", "
 PALO_DEVICE_TO_QUERY = list(["All"])
 CP_DEVICE_TO_QUERY = list(["All"])
 
-"""
-hide/many-to-one
-	src - interface, dst - ip 
-	src_translation_type - dynamic ip and port
-		address_type - interface address
-		address_type - src_translation_address (if we want to use different IP from interface)
-	src_translation_type - dynamic ip
-		address_type - src_translation_address
-static-bidirectional
-	src - ip, dst - ip 
-	src_translation_type - static ip
-	src_translation_address - 110.10.10.x
-	bidirectional option check
-inbound
-	src - ip, dst - ip 
-	dst_translation_address - 110.10.10.x
-	bidirectional option check
-"""
+DISREGAR_PKG = [{"domain": "FISERV_RMTCENTERS", "pkg": ["Standard"]}]

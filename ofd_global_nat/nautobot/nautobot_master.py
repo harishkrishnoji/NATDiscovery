@@ -11,6 +11,7 @@ def NautobotClient(device_data):
     Args:
         nat_data (dict): LB Data.
     """
+    log.info("Starting Nautobot Master...")
     device = SANE_DEVICE()
     for device1 in device_data:
         device.device_data = device1
