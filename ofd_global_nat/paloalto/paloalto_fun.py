@@ -3,7 +3,7 @@ import time
 import json
 from xmltodict import parse
 from helper.local_helper import log
-from helper.variables_firewall import PALO_DEVICE_FIELDS, PALO_DEVICE_TO_QUERY
+from helper.variables_firewall import PALO_DEVICE_FIELDS
 
 
 class Palo_NAT_Function:
@@ -22,6 +22,7 @@ class Palo_NAT_Function:
         self.nat_rules = []
         self.rules = []
         self.filename = ""
+        self.db = ""
 
     def firewall_devices(self):
         """Get firewall device list."""
@@ -29,10 +30,14 @@ class Palo_NAT_Function:
         for device in devices["response"]["result"]["devices"].get("entry"):
             device_info = {"environment": f"{self.env}-palo-{self.site}", "tags": [self.env]}
             for field in PALO_DEVICE_FIELDS:
-                if field == "ha":
+                if field == "ha" and "ha" in device:
                     device_info.update({field: device["ha"].get("state")})
                 elif field == "vsys":
-                    device_info.update({field: device[field]["entry"].get("display-name")})
+                    if isinstance(device[field]["entry"], list):
+                        for vsys in device[field]["entry"]:
+                            device_info.update({field: vsys.get("display-name")})
+                    else:
+                        device_info.update({field: device[field]["entry"].get("display-name")})
                 elif field == "ip-address":
                     device_info.update({"mgmt_address": device.get(field)})
                 else:
@@ -54,20 +59,20 @@ class Palo_NAT_Function:
                 return addr
             elif "." in addr:
                 address.append(addr)
-        return address
+        return ", ".join(address)
 
     def _nat_policy_addresses(self, rule, device):
         """NAT Policy Addresses."""
         rule_data = {}
         for item in rule.split('\n'):
             if "index" in item:
-                rule_data["name"] = item[1:].split(";")[0].strip()
+                rule_data["Name"] = item[1:].split(";")[0].strip()
             elif "source" in item:
                 rule_data["OriginalSource"] = self._rule_address_parser(item)
             elif "destination" in item:
                 rule_data["OriginalDestination"] = self._rule_address_parser(item)
             rule_data["FirewallName"] = device
-            rule_data["Firewall"] = "PaloAlto"
+            rule_data["Firewall"] = f"PaloAlto[{self.env.upper()}-{self.site.upper()}]"
         return rule_data
 
     def _rule_translate_to_parser(self, trans_item, rule_data):
@@ -86,48 +91,51 @@ class Palo_NAT_Function:
         rule_data = {}
         for item in rule.split('\n'):
             if "index" in item:
-                rule_data["name"] = item[1:].split(";")[0].strip()
+                rule_data["Name"] = item[1:].split(";")[0].strip()
             elif "translate-to" in item:
                 # translate-to "src: 198.184.0.53 (dynamic-ip-and-port) (pool idx: 5)";
+                # translate-to "dst: 10.31.216.41(cnt: 0)(distribution: round-robin)";
                 translate_list = item.strip().split('"')
                 # Set default to Original
-                rule_data["Translated-Source"] = "Original"
-                rule_data["Translated-Destination"] = "Original"
+                rule_data["TranslatedSource"] = "Original"
+                rule_data["TranslatedDestination"] = "Original"
                 for trans_item in translate_list:
-                    self._rule_translate_to_parser(trans_item, rule_data)
+                    self._rule_translate_to_parser(trans_item.replace("(cnt:", ""), rule_data)
             for rule in self.nat_rules:
-                if rule.get("name") == rule_data.get("name"):
+                if rule.get("Name") == rule_data.get("Name"):
                     rule.update(rule_data)
 
-    def _get_nat_policy(self, cmd, device):
+    def _update_sqlite_db(self):
+        if self.db:
+            for rule in self.nat_rules:
+                try:
+                    self.db.insert_row(rule)
+                except Exception as err:
+                    log.error(f"DB entry: {rule} : {err}")
+
+    def get_nat_policy(self, cmd, device):
         """NAT Policy"""
         # for device in self.device_list:
-        if device.get("ha") == "passive" and device.get("connected") == "yes":
+        # if device.get("ha") == "passive" and device.get("connected") == "yes":
+        resp = self.pan.op(cmd=cmd, extra_qs=f"target={device.get('serial')}", xml=True)
+        if resp and "addresses" in cmd:
             log.info(device.get("hostname"))
-            resp = self.pan.op(cmd=cmd, extra_qs=f"target={device.get('serial')}", xml=True)
-            if "addresses" in cmd:
-                self.nat_rules = []
-                xml_dict = parse(resp)['response']['result']
-                if xml_dict:
-                    for rule in xml_dict.split("\n\n"):
-                        rule_data = self._nat_policy_addresses(rule, device.get("hostname"))
-                        self.nat_rules.append(rule_data)
-            elif resp:
-                xml_dict = parse(resp)['response']['result']['member']
-                if xml_dict:
-                    for rule in xml_dict.split("\n\n"):
-                        self._nat_policy_translate(rule)
-                    self.rules.extend(self.nat_rules)
+            self.nat_rules = []
+            xml_dict = parse(resp)['response']['result']
+            if xml_dict:
+                for rule in xml_dict.split("\n\n"):
+                    rule_data = self._nat_policy_addresses(rule, f'{device.get("hostname")}[{device.get("mgmt_address")}]')
+                    self.nat_rules.append(rule_data)
+        elif resp:
+            xml_dict = parse(resp)['response']['result']['member']
+            if xml_dict:
+                for rule in xml_dict.split("\n\n"):
+                    self._nat_policy_translate(rule)
+                self.rules.extend(self.nat_rules)
+            self._update_sqlite_db()
 
     def jsonfile(self, data, type):
         """Write to JSON for reference."""
-        self.filename = f"RUNDECK_OFD_PALO_{type}-{time.strftime('%m%d%Y-%H%M')}.json"
+        self.filename = f"RUNDECK_PALO_{self.env}_{self.site}_{type}-{time.strftime('%m%d%Y-%H%M')}.json"
         with open(self.filename, "w+") as json_file:
             json.dump(data, json_file, indent=4, separators=(",", ": "), sort_keys=True)
-
-    def nat_policy(self):
-        """NAT Policy."""
-        for device in self.device_list:
-            if "All" in PALO_DEVICE_TO_QUERY or device.get("hostname") in PALO_DEVICE_TO_QUERY:
-                self._get_nat_policy("show running nat-policy-addresses", device)
-                self._get_nat_policy("show running nat-policy", device)

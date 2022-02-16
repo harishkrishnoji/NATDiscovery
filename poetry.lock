@@ -278,6 +278,26 @@ url = "https://git-enterprise-jc.onefiserv.net/api/v4/projects/1656/packages/pyp
 reference = "gitlab"
 
 [[package]]
+name = "hvac"
+version = "0.11.2"
+description = "HashiCorp Vault API client"
+category = "main"
+optional = false
+python-versions = ">=2.7"
+
+[package.dependencies]
+requests = ">=2.21.0"
+six = ">=1.5.0"
+
+[package.extras]
+parser = ["pyhcl (>=0.3.10)"]
+
+[package.source]
+type = "legacy"
+url = "https://nexus-appdev.1dc.com/repository/pypi-group/simple"
+reference = "nexus"
+
+[[package]]
 name = "idna"
 version = "2.10"
 description = "Internationalized Domain Names in Applications (IDNA)"
@@ -735,7 +755,7 @@ reference = "nexus"
 name = "six"
 version = "1.16.0"
 description = "Python 2 and 3 compatibility utilities"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 
@@ -889,7 +909,7 @@ reference = "nexus"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "d95ccd6033ff23a72d4b2b12afa6ae8ba1346f7f137af256abfbceb326aa342f"
+content-hash = "84bb9c526df4526de38b021a1d70a72df1ffe748156f3cb37f7981baeadf5a60"
 
 [metadata.files]
 appdirs = [
@@ -1009,6 +1029,10 @@ gitpython = [
 helper-fts = [
     {file = "helper-fts-1.0.7.tar.gz", hash = "sha256:ed10ba8a3f92442cc361ea704726852997caa9f616faf422f5fb87d76ac6fae7"},
     {file = "helper_fts-1.0.7-py3-none-any.whl", hash = "sha256:1447b1524a830c3046a37fe00af7f8ad5ca424290a223e645327779983c13426"},
+]
+hvac = [
+    {file = "hvac-0.11.2-py2.py3-none-any.whl", hash = "sha256:3e8a34804b1e20954a2b4991cc13ed9c09b32e50dadd9d3438224481150f6568"},
+    {file = "hvac-0.11.2.tar.gz", hash = "sha256:f905c59d32d88d3f67571fe5a8a78de4659e04798ad809de439f667247d13626"},
 ]
 idna = [
     {file = "idna-2.10-py2.py3-none-any.whl", hash = "sha256:b97d804b1e9b523befed77c48dacec60e6dcb0b5391d57af6a65a312a90648c0"},

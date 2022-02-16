@@ -14,6 +14,7 @@ DEVICE_ROLE = {"name": "firewall", "slug": "firewall", "description": "CheckPoin
 #########################################################################
 
 PALO_DEVICE_TO_QUERY = list(["All"])
+# CP_DEVICE_TO_QUERY = list(["TEST"])
 CP_DEVICE_TO_QUERY = list(["All"])
 
 DISREGAR_PKG = [{"domain": "FISERV_RMTCENTERS", "pkg": ["Standard"]}]

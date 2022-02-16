@@ -24,6 +24,8 @@ class CP_NAT_Function:
         self.checkpoint_host = {}
         self.filename = ""
         self.disregard_pkg = []
+        self.db = ""
+        self.mem_cluster_info = {}
 
     def domain_lst(self):
         """This function will pull all the domain from Checkpoint."""
@@ -41,11 +43,16 @@ class CP_NAT_Function:
             self.package = package.get("name")
             if self.package not in self.disregard_pkg:
                 # This function will pull nat rulebase associated to the package in Domain/CMA
+                install_targets = []
                 if "all" in package.get("installation-targets"):
-                    self.target = "All"
-                else:
-                    install_targets = [device.get("name") for device in package.get("installation-targets")]
-                    self.target = ", ".join(install_targets)
+                    gateways = self._get_gateways_servers()
+                    for device in gateways.get("objects"):
+                        if device.get("type") == "CpmiVsClusterNetobj" or device.get("type") == "CpmiVsxClusterMember":
+                            install_targets.append(self._parse_cpmigatewaycluster(device.get("name")))
+                    # self.target = "All"
+                elif package.get("installation-targets"):
+                    install_targets = [self._parse_cpmigatewaycluster(device.get("name")) for device in package.get("installation-targets")]
+                self.target = ", ".join(install_targets)
                 self._nat_rulebase()
 
     def _nat_rulebase(self):
@@ -84,17 +91,27 @@ class CP_NAT_Function:
             rule (dict): Firewall Rule.
         """
         nat_rule = {
-            "name": rule.get("uid"),
+            "Name": rule.get("uid"),
             "Method": rule.get("method"),
-            "OriginalSource": self.rulebase_objects.get(rule.get("original-source")),
-            "TranslatedSource": self.rulebase_objects.get(rule.get("translated-source")),
-            "OriginalDestination": self.rulebase_objects.get(rule.get("original-destination")),
-            "TranslatedDestination": self.rulebase_objects.get(rule.get("translated-destination")),
-            "Firewall": "CheckPoint",
+            "OriginalSource": self._convert_to_str(self.rulebase_objects.get(rule.get("original-source"))),
+            "TranslatedSource": self._convert_to_str(self.rulebase_objects.get(rule.get("translated-source"))),
+            "OriginalDestination": self._convert_to_str(self.rulebase_objects.get(rule.get("original-destination"))),
+            "TranslatedDestination": self._convert_to_str(self.rulebase_objects.get(rule.get("translated-destination"))),
+            "Firewall": f"CheckPoint[{self.env.upper()}]",
             "FirewallName": self.target,
-            "Policy": self.package,
+            # "Policy": self.package,
         }
+        if self.db:
+            try:
+                self.db.insert_row(nat_rule)
+            except Exception as err:
+                log.error(f"DB entry: {nat_rule} : {err}")
         return nat_rule
+
+    def _convert_to_str(self, item):
+        if isinstance(item, list):
+            return ", ".join(item)
+        return item
 
     def _parse_address(self, object):
         """This function will extract IP address from string.
@@ -132,9 +149,18 @@ class CP_NAT_Function:
                 self.rulebase_objects[object.get("uid")] = self.checkpoint_host[object.get("name")].get("address")
             elif object.get("type") == "CpmiGatewayPlain":
                 self.rulebase_objects[object.get("uid")] = self._parse_address(object.get("name"))
+            elif object.get("type") == "CpmiGatewayCluster" or object.get("type") == "CpmiHostCkp" or object.get("type") == "simple-gateway":
+                self.rulebase_objects[object.get("uid")] = self._parse_cpmigatewaycluster(object.get("name"))
             else:
                 # log.warning(f"Unknown Object type: {object}")
-                self.rulebase_objects[object.get("uid")] = {"name": object.get("name"), "type": object.get("type")}
+                # self.rulebase_objects[object.get("uid")] = {"name": object.get("name"), "type": object.get("type")}
+                self.rulebase_objects[object.get("uid")] = object.get("name")
+
+    def _parse_cpmigatewaycluster(self, name):
+        for device in self.gateways_list:
+            if device.get("hostname") == name:
+                return f'{device.get("hostname")}[{device.get("mgmt_address")}]'
+        return name
 
     def _get_group(self, group_name):
         """This function will get group info.
@@ -156,41 +182,67 @@ class CP_NAT_Function:
             elif mem.get("type") == "group":
                 self._get_group(mem["name"])
 
+    def _get_gateways_servers(self, offset=0, level="standard"):
+        params = {"data": {"limit": 500, "offset": offset, "details-level": level}}
+        gateways_raw = self.cp.get_cp_data("show-gateways-and-servers", **params)
+        return json.loads(gateways_raw.text)
+
     def gateways(self):
         """This function will pull all the gatwats from Checkpoint."""
-        params = {"data": {"limit": 500, "offset": 0, "details-level": "full"}}
-        gateways = self.cp.get_cp_data("show-gateways-and-servers", **params)
-        gateways_json = json.loads(gateways.text)
-        for gateways in gateways_json.get("objects"):
-            if gateways.get("type") == "CpmiGatewayCluster" or gateways.get("type") == "CpmiClusterMember":
-                device_info = {"environment": f"{self.env}-cp", "tags": [self.env]}
-                for field in CP_DEVICE_FIELDS:
-                    if field == "ipv4-address":
-                        device_info.update({"mgmt_address": gateways.get(field)})
-                    elif field == "name":
-                        device_info.update({"hostname": gateways.get(field)})
-                    elif field == "hardware":
-                        device_info.update({"model": gateways.get(field)})
-                    else:
-                        device_info.update({field: gateways.get(field)})
-                self.gateways_list.append(device_info)
-            if gateways.get("type") == "checkpoint-host":
-                self.checkpoint_host.update({gateways.get("name"): {"address": gateways.get("ipv4-address")}})
+        total = 0
+        offset = 0
+        while total >= offset:
+            # params = {"data": {"limit": 500, "offset": offset, "details-level": "full"}}
+            # gateways_raw = self.cp.get_cp_data("show-gateways-and-servers", **params)
+            gateways_json = self._get_gateways_servers(offset, "full")
+            total = gateways_json.get("total")
+            offset = offset + 500
+            gateway_server_type = [
+                "CpmiGatewayCluster",
+                "CpmiClusterMember",
+                "CpmiVsClusterNetobj",
+                "CpmiVsxClusterNetobj",
+                "CpmiVsxClusterMember",
+                "CpmiHostCkp",
+                "simple-gateway",
+            ]
+            for gateways in gateways_json.get("objects"):
+                if gateways.get("type") == "CpmiGatewayCluster" or gateways.get("type") == "CpmiVsxClusterNetobj":
+                    for cluster_mem in gateways.get("cluster-member-names", []):
+                        self.mem_cluster_info.update({cluster_mem: gateways.get("name")})
+                if gateways.get("type") in gateway_server_type:
+                    device_info = {"environment": f"{self.env}-cp", "tags": [self.env]}
+                    for field in CP_DEVICE_FIELDS:
+                        if field == "ipv4-address":
+                            device_info.update({"mgmt_address": gateways.get(field)})
+                        elif field == "name":
+                            device_info.update({"hostname": gateways.get(field)})
+                        elif field == "hardware":
+                            device_info.update({"model": gateways.get(field)})
+                        else:
+                            device_info.update({field: gateways.get(field)})
+                    self.gateways_list.append(device_info)
+                if gateways.get("type") == "checkpoint-host":
+                    self.checkpoint_host.update({gateways.get("name"): {"address": gateways.get("ipv4-address")}})
+        log.info(f"Total Devices: {len(list(self.gateways_list))}")
         log.info("Gateway parser...")
         self._gateway_parser()
 
     def _gateway_parser(self):
-        cluster = []
+        clusters = {}
         for device in self.gateways_list:
-            if "CpmiGatewayCluster" in device.get("type"):
-                cluster.append(device)
-        for dev in cluster:
-            for device in self.gateways_list:
-                if dev.get("hostname") in device.get("hostname"):
-                    device["operating-system"] = dev.get("operating-system")
-                    device["model"] = dev.get("model")
-                    device["version"] = dev.get("version")
-                    device["network-security-blades"] = dev.get("network-security-blades")
+            if device.get("type") == "CpmiVsxClusterNetobj" or device.get("type") == "CpmiGatewayCluster":
+                clusters.update({device.get("hostname"): device})
+        for device in self.gateways_list:
+            if device.get("type") == "CpmiClusterMember" or device.get("type") == "CpmiVsxClusterMember":
+                cluster_name = self.mem_cluster_info.get(device.get("hostname"))
+                if clusters.get(cluster_name):
+                    device["operating-system"] = clusters[cluster_name].get("operating-system")
+                    device["model"] = clusters[cluster_name].get("model")
+                    device["version"] = clusters[cluster_name].get("version")
+                    device["network-security-blades"] = clusters[cluster_name].get("network-security-blades")
+                else:
+                    log.warning(f"Cluster-Member mismatch : {device.get('hostname')}")
 
     def jsonfile(self, data, type):
         """Write to JSON for reference."""

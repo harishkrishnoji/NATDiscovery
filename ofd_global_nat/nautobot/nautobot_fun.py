@@ -1,50 +1,56 @@
 # pylint: disable=W1203, C0103, W0631, W0703
 """Nautobot REST API SDK."""
 
-import os
+# import os
 import requests
 import pynautobot
 from helper.variables_nautobot import NAUTOBOT_DEVICE_REGION, NAUTOBOT_DEVICE_REGION_OFS, DEVICE_ROLE
 from helper.local_helper import log
-# from datetime import datetime
 
 requests.urllib3.disable_warnings()
-
-url                     = os.environ.get("RD_OPTION_NAUTOBOT_URL")
-token                   = os.environ.get("RD_OPTION_NAUTOBOT_KEY")
-nb                      = pynautobot.api(url, token=token, threading=True)
-nb.http_session.verify  = False
-plugins_attr            = getattr(nb, "plugins")
-extras_attr             = getattr(nb, "extras")
-dcim_attr               = getattr(nb, "dcim")
-ipam_attr               = getattr(nb, "ipam")
-vip_tracker_attr        = getattr(plugins_attr, "vip-tracker")
-tags_attr               = getattr(extras_attr, "tags")
-ip_addresses_attr       = getattr(ipam_attr, "ip-addresses")
-interfaces_attr         = getattr(dcim_attr, "interfaces")
-sites_attr              = getattr(dcim_attr, "sites")
-devices_attr            = getattr(dcim_attr, "devices")
-device_types_attr       = getattr(dcim_attr, "device-types")
-device_roles_attr       = getattr(dcim_attr, "device-roles")
-manufacturers_attr      = getattr(dcim_attr, "manufacturers")
-regions_attr            = getattr(dcim_attr, "regions")
-platforms_attr          = getattr(dcim_attr, "platforms")
 
 
 class SANE_DEVICE:
     """Create a Nautobot LB Device Function client."""
 
-    def __init__(self, device_data=""):
+    def __init__(self, device_data="", url="", token=""):
         """Initialize Nautobot Function Client.
 
         Args:
+            url (str): Nautobot URL.
+            token (str): Nautobot Token.
             device_data (dict): LB Device information in dict format.
+                ex: device_data = {
+                        "environment": "ofd-palo",
+                        "hostname": "USOMA01FWLCLT01B",
+                        "mgmt_address": "10.243.96.155",
+                        "model": "PA-VM",
+                        "serial": "007251000204254",
+                        "sw-version": "9.1.11",
+                        "tags": ["ofd"],
+                    },
         """
-        self.device_data = device_data
+        self.nb                      = pynautobot.api(url, token=token, threading=True)
+        self.nb.http_session.verify  = False
+        self.device_data             = device_data
+        self.plugins_attr            = getattr(self.nb, "plugins")
+        self.extras_attr             = getattr(self.nb, "extras")
+        self.dcim_attr               = getattr(self.nb, "dcim")
+        self.ipam_attr               = getattr(self.nb, "ipam")
+        self.tags_attr               = getattr(self.extras_attr, "tags")
+        self.ip_addresses_attr       = getattr(self.ipam_attr, "ip-addresses")
+        self.interfaces_attr         = getattr(self.dcim_attr, "interfaces")
+        self.sites_attr              = getattr(self.dcim_attr, "sites")
+        self.devices_attr            = getattr(self.dcim_attr, "devices")
+        self.device_types_attr       = getattr(self.dcim_attr, "device-types")
+        self.device_roles_attr       = getattr(self.dcim_attr, "device-roles")
+        self.manufacturers_attr      = getattr(self.dcim_attr, "manufacturers")
+        self.regions_attr            = getattr(self.dcim_attr, "regions")
+        self.platforms_attr          = getattr(self.dcim_attr, "platforms")
 
     def device(self):
         """Check if loadbalancer object exist in core Device module."""
-        device = devices_attr.get(name=self.device_data.get("hostname"))
+        device = self.devices_attr.get(name=self.device_data.get("hostname"))
         self.tags()
         if not device:
             self.device_role()
@@ -61,14 +67,14 @@ class SANE_DEVICE:
                 "tags": self.tag_uuid,
                 "serial": self.device_data.get("serial")
             }
-            device = devices_attr.create(data)
+            device = self.devices_attr.create(data)
             self.loadbalancer_uuid = device.id
             self.device_interface()
         self.loadbalancer_uuid = device.id
 
     def device_interface(self):
         """Create Device Interface object in core Organization module."""
-        interface = interfaces_attr.filter(device=self.device_data.get("hostname"))
+        interface = self.interfaces_attr.filter(device=self.device_data.get("hostname"))
         if interface:
             self.interface_uuid = interface[0].id
         else:
@@ -79,7 +85,7 @@ class SANE_DEVICE:
                 "enabled": True,
                 "description": f"{self.device_data.get('hostname')} Management Interface"
             }
-            interface = interfaces_attr.create(data)
+            interface = self.interfaces_attr.create(data)
             self.interface_uuid = interface.id
         self.device_interface_address()
 
@@ -87,29 +93,29 @@ class SANE_DEVICE:
         """Create Interface Address object in core Organization module."""
         self.mgmt_address_uuid = self.ipam_address(self.device_data.get("mgmt_address"))
         data = {"primary_ip4": self.mgmt_address_uuid, "tags": self.tag_uuid}
-        device = devices_attr.get(name=self.device_data.get("hostname"))
+        device = self.devices_attr.get(name=self.device_data.get("hostname"))
         device.update(data)
 
     def device_role(self):
         """Create Device Role object in core Organization module."""
-        device_role = device_roles_attr.get(name="firewall")
+        device_role = self.device_roles_attr.get(name="firewall")
         if not device_role:
             data = DEVICE_ROLE
-            device_role = device_roles_attr.create(data)
+            device_role = self.device_roles_attr.create(data)
         self.device_role_uuid = device_role.id
 
     def device_platforms(self):
         """Create Device Platform object in core Organization module."""
         name = "gaia" if "-cp" in self.device_data.get("environment") else "panos"
-        platform = platforms_attr.get(name=name)
+        platform = self.platforms_attr.get(name=name)
         if not platform:
             data = {"name": name, "slug": name, "manufacturer": self.manufacturer_uuid}
-            platform = platforms_attr.create(data)
+            platform = self.platforms_attr.create(data)
         self.platform_uuid = platform.id
 
     def device_type(self):
         """Create Device Type object in core Organization module."""
-        device_type = device_types_attr.get(slug="firewall")
+        device_type = self.device_types_attr.get(slug="firewall")
         if not device_type:
             self.manufacturers()
             data = {
@@ -117,26 +123,26 @@ class SANE_DEVICE:
                 "model": self.device_data.get("model"),
                 "slug": "firewall",
             }
-            device_type = device_types_attr.create(data)
+            device_type = self.device_types_attr.create(data)
         self.device_type_uuid = device_type.id
 
     def manufacturers(self):
         """Create manufacturer object in core Organization module."""
         manufacturer_name = "CheckPoint" if "-cp" in self.device_data.get("environment") else "PaloAltoNetworks"
-        manufacturer = manufacturers_attr.get(name=manufacturer_name)
+        manufacturer = self.manufacturers_attr.get(name=manufacturer_name)
         if not manufacturer:
             data = {"name": manufacturer_name, "slug": self.slug_parser(manufacturer_name)}
-            manufacturer = manufacturers_attr.create(data)
+            manufacturer = self.manufacturers_attr.create(data)
         self.manufacturer_uuid = manufacturer.id
 
     def tags(self):
         """Create tag object in core Organization module."""
         tag_uuid = []
         for tag_name in self.device_data.get("tags"):
-            tag = tags_attr.get(slug=self.slug_parser(tag_name))
+            tag = self.tags_attr.get(slug=self.slug_parser(tag_name))
             if not tag:
                 data = {"name": tag_name.lower(), "slug": self.slug_parser(tag_name)}
-                tag = tags_attr.create(data)
+                tag = self.tags_attr.create(data)
             tag_uuid.append(tag.id)
         self.tag_uuid = tag_uuid
 
@@ -151,7 +157,7 @@ class SANE_DEVICE:
             octate = ".".join(self.device_data.get("address").split(".", 2)[:2])
             if octate in NAUTOBOT_DEVICE_REGION_OFS.keys():
                 self.site_info = NAUTOBOT_DEVICE_REGION_OFS[octate]
-        site = sites_attr.get(slug=self.slug_parser(self.site_info.get("site")))
+        site = self.sites_attr.get(slug=self.slug_parser(self.site_info.get("site")))
         if not site:
             self.region()
             data = {
@@ -161,15 +167,15 @@ class SANE_DEVICE:
                 "region": self.region_uuid,
                 "description": self.site_info.get("description", ""),
             }
-            site = sites_attr.create(data)
+            site = self.sites_attr.create(data)
         self.site_uuid = site.id
 
     def region(self):
         """Create Region object in core Organization module."""
-        region = regions_attr.get(name=self.site_info.get("region"))
+        region = self.regions_attr.get(name=self.site_info.get("region"))
         if not region:
             data = {"name": self.site_info.get("region"), "slug": self.slug_parser(self.site_info.get("region"))}
-            region = regions_attr.create(data)
+            region = self.regions_attr.create(data)
         self.region_uuid = region.id
 
     def ipam_address(self, address):
@@ -181,7 +187,7 @@ class SANE_DEVICE:
         Returns:
             str: IP Address UUID.
         """
-        ipam_addr = ip_addresses_attr.filter(address=address)
+        ipam_addr = self.ip_addresses_attr.filter(address=address)
         ipam_address = False
         for addr in ipam_addr:
             tag = [i.slug for i in addr.tags]
@@ -198,7 +204,7 @@ class SANE_DEVICE:
         )
         try:
             if not ipam_address:
-                ipam_address = ip_addresses_attr.create(data)
+                ipam_address = self.ip_addresses_attr.create(data)
             elif ipam_address.assigned_object_id != self.interface_uuid:
                 ipam_address.update(data)
         except Exception as err:
