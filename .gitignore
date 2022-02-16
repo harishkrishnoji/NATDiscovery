@@ -4,6 +4,8 @@ __pycache__/
 .vscode/
 env/
 .env
+.db
+.json
 *.swp
 *.code-workspace
 *.egg-info/
