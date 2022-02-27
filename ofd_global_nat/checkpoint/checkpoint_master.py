@@ -27,12 +27,13 @@ def cp_master(env, fwl):
     if "ofd" in env:
         mdm_addr = "10.116.160.16"
         log.info(CP_OFD_URL)
-        url = "https://10.116.160.16/web_api/"
+        url = CP_OFD_URL
+        # url = "https://10.116.160.16/web_api/"
     elif "ofs" in env:
         mdm_addr = "10.30.61.89"
         log.info(CP_OFS_URL)
-        # url = CP_OFS_URL
-        url = "https://11.30.61.89/web_api/"
+        url = CP_OFS_URL
+        # url = "https://11.30.61.89/web_api/"
     data = {
         "username": vault_data["data"]["data"][mdm_addr][0].get("username"),
         "password": vault_data["data"]["data"][mdm_addr][0].get("password"),

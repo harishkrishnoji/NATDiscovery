@@ -263,7 +263,7 @@ reference = "nexus"
 
 [[package]]
 name = "helper-fts"
-version = "1.0.7"
+version = "1.0.10"
 description = "Helper Script for FTS Engineers"
 category = "main"
 optional = false
@@ -271,6 +271,7 @@ python-versions = ">=3.8,<4.0"
 
 [package.dependencies]
 colorlog = ">=6.6.0,<7.0.0"
+hvac = ">=0.11.2,<0.12.0"
 
 [package.source]
 type = "legacy"
@@ -1027,8 +1028,8 @@ gitpython = [
     {file = "GitPython-3.1.18.tar.gz", hash = "sha256:b838a895977b45ab6f0cc926a9045c8d1c44e2b653c1fcc39fe91f42c6e8f05b"},
 ]
 helper-fts = [
-    {file = "helper-fts-1.0.7.tar.gz", hash = "sha256:ed10ba8a3f92442cc361ea704726852997caa9f616faf422f5fb87d76ac6fae7"},
-    {file = "helper_fts-1.0.7-py3-none-any.whl", hash = "sha256:1447b1524a830c3046a37fe00af7f8ad5ca424290a223e645327779983c13426"},
+    {file = "helper-fts-1.0.10.tar.gz", hash = "sha256:4ef2963cdb795d069b855f70e6aa4c5210690e68aaa87a4ce5fd37cb1e34cdc8"},
+    {file = "helper_fts-1.0.10-py3-none-any.whl", hash = "sha256:39bde3c055b6b7e3edf40894494d4a391169b81b8ba8d2bf3e5e76e7b9ff492e"},
 ]
 hvac = [
     {file = "hvac-0.11.2-py2.py3-none-any.whl", hash = "sha256:3e8a34804b1e20954a2b4991cc13ed9c09b32e50dadd9d3438224481150f6568"},
