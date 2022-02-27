@@ -136,6 +136,6 @@ class Palo_NAT_Function:
 
     def jsonfile(self, data, type):
         """Write to JSON for reference."""
-        self.filename = f"RUNDECK_PALO_{self.env}_{self.site}_{type}-{time.strftime('%m%d%Y-%H%M')}.json"
+        self.filename = f"{self.env}_{self.site}_{type}-{time.strftime('%m%d%Y-%H%M')}.json"
         with open(self.filename, "w+") as json_file:
             json.dump(data, json_file, indent=4, separators=(",", ": "), sort_keys=True)
