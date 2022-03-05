@@ -12,9 +12,9 @@ services:
       target: cli
       context: .
     environment:
-      RD_OPTION_CPUSER: $RD_OPTION_CPUSER
-      RD_OPTION_CPPWD: $RD_OPTION_CPPWD
-      RD_OPTION_PAUSER: $RD_OPTION_PAUSER
-      RD_OPTION_PAPWD: $RD_OPTION_PAPWD
-    command: global_nat.py
+      RD_OPTION_ENV: $RD_OPTION_ENV
+      RD_OPTION_DEVICES: $RD_OPTION_DEVICES
+      RD_OPTION_NAUTOBOT_URL: $RD_OPTION_NAUTOBOT_URL
+      LOG_LEVEL: $RD_OPTION_LOG_LEVEL
+    command: master.py
     tty: true
