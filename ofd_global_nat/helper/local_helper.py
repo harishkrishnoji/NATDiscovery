@@ -2,74 +2,74 @@
 """Script local config."""
 
 import os
-import requests
+import json
 from helper_fts.logger import get_logger
-from pymongo import MongoClient
+from helper.gitlab_helper import GitLab_Client
+from helper_fts.vault import hashi_vault_rundeck
 
+# from helper_fts.vault import hashi_vault
+
+
+token = os.environ.get("HASHI_TOKEN")
 log = get_logger()
 
-
-def uploadfile(fname):
-    """Upload file to remote server.
-
-    Args:
-        fname (str): Filename which need to be uploaded
-    """
-    url = "https://sas-automation.1dc.com/cgi-bin/uploadfile.py"
-    files = [("filename", (os.path.basename(fname), open(fname, "rb")))]
-    response = requests.request("POST", url, files=files, verify=False)
-    return response.text
+vdata = {
+    "namespace": os.environ.get("VAULT_NAMESPACE"),
+    "role_id": os.environ.get("VAULT_ROLE_ID"),
+    "secret_id": os.environ.get("VAULT_SECRET_ID"),
+}
 
 
-class MongoDB:
-    """Create a MongoDB API client."""
+def get_git_keys():
+    path = "gitlab"
+    # vault_data = hashi_vault(token=token, path=path)
+    vdata["path"] = path
+    vault_data = hashi_vault_rundeck(**vdata)
+    return vault_data["data"]["data"]["access_token"].get("sane_backups")
 
-    def __init__(self, usr, pwd, host):
-        """Initialize MongoDB API Client.
 
-        Args:
-            usr (str): Username to authenticate to MongoDB API.
-            pwd (str): Password to authenticate to MongoDB API.
-            host (str): MongoDB host.
-        """
-        self.log = log
-        self.client = MongoClient(host=f"mongodb://{usr}:{pwd}@{host}/fdc_inventory?authSource=admin")
-        self.log.debug("DB initiated")
+git_token = get_git_keys()
+glab = GitLab_Client(token=git_token)
 
-    def update_document(self, query, data, db):
-        """Update document on MongoDB if diff condition pass.
 
-        Args:
-            query (str): DB query string.
-            data (dict): data to run diff function.
-            db (object): MongoDB Object.
-        """
-        document = db.find_one(query)
-        if document:
-            document.pop("_id", None)
-            db.replace_one(query, data)
-        else:
-            db.insert_one(data)
+def uploadfile(sas_vip_info, env):
+    """Update VIP data on to remote server and Nautobot."""
+    filename = f"{env}.json"
+    with open(filename, "w+") as json_file:
+        json.dump(sas_vip_info, json_file, indent=4, separators=(",", ": "), sort_keys=True)
+    gitUpload(filename, env)
 
-    def host_collection(self, lb_data):
-        """Get Device collection from MongoDB.
 
-        Args:
-            lb_data (dict): LB Device related info.
-        """
-        db_vip = self.client.fdc_inventory.sane_devices
-        query = {"mgmt_address": lb_data.get("mgmt_address"), "hostname": lb_data.get("hostname")}
-        self.update_document(query, lb_data, db_vip)
+def gitUpload(filename, env):
+    glab.filepath = f"fw-nat/{env}.json"
+    glab.update_file(filename)
 
-    def nat_collection(self, nat):
-        """Get nat collection from MongoDB.
 
-        Args:
-            nat (dict): NAT Rule info.
-        """
-        db_host = self.client.fdc_inventory.sane_fw_nat
-        query = {
-            "name": nat.get("name"),
-            "Firewall-Name": nat.get("Firewall-Name")
-        }
-        self.update_document(query, nat, db_host)
+def get_credentials_cp(mdm_addr, url):
+    path = "checkpoint_secrets"
+    # vault_data = hashi_vault(token=token, path=path)
+    vdata["path"] = path
+    vault_data = hashi_vault_rundeck(**vdata)
+    return {
+        "username": vault_data["data"]["data"][mdm_addr][0].get("username"),
+        "password": vault_data["data"]["data"][mdm_addr][0].get("password"),
+        "url": url,
+    }
+
+
+def get_credentials_pan(pan_name):
+    path = "panorama_api_keys_v2"
+    # vault_data = hashi_vault(token=token, path=path)
+    vdata["path"] = path
+    vault_data = hashi_vault_rundeck(**vdata)
+    return vault_data["data"]["data"][pan_name][0].get("api_key_v9")
+
+
+def get_nb_keys(nburl):
+    path = "nautobot"
+    # vault_data = hashi_vault(token=token, path=path)
+    vdata["path"] = path
+    vault_data = hashi_vault_rundeck(**vdata)
+    if "-cat" in nburl.lower():
+        return vault_data["data"]["data"]["keys"].get("cat")
+    return vault_data["data"]["data"]["keys"].get("prod")

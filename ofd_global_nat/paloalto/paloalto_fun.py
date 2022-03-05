@@ -1,6 +1,4 @@
 """Palo Alto Rules - Log Profile Update."""
-import time
-import json
 from xmltodict import parse
 from helper.local_helper import log
 from helper.variables_firewall import PALO_DEVICE_FIELDS
@@ -45,14 +43,7 @@ class Palo_NAT_Function:
             self.device_list.append(device_info)
 
     def _rule_address_parser(self, item):
-        """NAT Rule Address parser.
-
-        Args:
-            item (str): NAT address string.
-
-        Returns:
-            list: Address list.
-        """
+        """NAT Rule Address parser."""
         address = []
         for addr in item.strip()[:-1].split(" "):
             if addr == "any":
@@ -105,14 +96,6 @@ class Palo_NAT_Function:
                 if rule.get("Name") == rule_data.get("Name"):
                     rule.update(rule_data)
 
-    def _update_sqlite_db(self):
-        if self.db:
-            for rule in self.nat_rules:
-                try:
-                    self.db.insert_row(rule)
-                except Exception as err:
-                    log.error(f"DB entry: {rule} : {err}")
-
     def get_nat_policy(self, cmd, device):
         """NAT Policy"""
         # for device in self.device_list:
@@ -132,10 +115,3 @@ class Palo_NAT_Function:
                 for rule in xml_dict.split("\n\n"):
                     self._nat_policy_translate(rule)
                 self.rules.extend(self.nat_rules)
-            self._update_sqlite_db()
-
-    def jsonfile(self, data, type):
-        """Write to JSON for reference."""
-        self.filename = f"{self.env}_{self.site}_{type}-{time.strftime('%m%d%Y-%H%M')}.json"
-        with open(self.filename, "w+") as json_file:
-            json.dump(data, json_file, indent=4, separators=(",", ": "), sort_keys=True)

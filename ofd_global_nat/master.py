@@ -12,23 +12,9 @@ log.info(f"Environment {ENV}")
 
 if __name__ == "__main__":
     try:
-        if ENV == "OFD_CheckPoint":
-            cp_master("ofd", "cp")
-        elif ENV == "OFD_PaloAlto":
-            palo_master("ofd", "prod")
-        elif ENV == "OFS_CheckPoint":
-            cp_master("ofs", "cp")
-        elif ENV == "OFS_PaloAlto_Lowers":
-            palo_master("ofs", "lowers")
-        elif ENV == "OFS_PaloAlto_Virtual":
-            palo_master("ofs", "virtual")
-        elif ENV == "OFS_PaloAlto_Main":
-            palo_master("ofs", "main")
-        elif ENV == "OFS_PaloAlto_AZUpper":
-            palo_master("ofs", "azure_upper")
-        elif ENV == "OFS_PaloAlto_AZLower":
-            palo_master("ofs", "azure_lower")
-        elif ENV == "OFS_PaloAlto_Corp":
-            palo_master("ofs", "corp")
+        if "CheckPoint" in ENV:
+            cp_master(ENV)
+        elif "PaloAlto" in ENV:
+            palo_master(ENV)
     except Exception as err:
         log.error(f"{err}")

@@ -24,7 +24,6 @@ class CP_NAT_Function:
         self.checkpoint_host = {}
         self.filename = ""
         self.disregard_pkg = []
-        self.db = ""
         self.mem_cluster_info = {}
 
     def domain_lst(self):
@@ -99,13 +98,8 @@ class CP_NAT_Function:
             "TranslatedDestination": self._convert_to_str(self.rulebase_objects.get(rule.get("translated-destination"))),
             "Firewall": f"CheckPoint[{self.env.upper()}]",
             "FirewallName": self.target,
-            # "Policy": self.package,
+            "Policy": self.package,
         }
-        if self.db:
-            try:
-                self.db.insert_row(nat_rule)
-            except Exception as err:
-                log.error(f"DB entry: {nat_rule} : {err}")
         return nat_rule
 
     def _convert_to_str(self, item):

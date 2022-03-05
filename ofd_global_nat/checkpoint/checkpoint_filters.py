@@ -1,4 +1,7 @@
-from helper.variables_firewall import CP_DEVICE_TO_QUERY, DISREGAR_PKG
+import os
+from helper.variables_firewall import DISREGAR_PKG
+
+CP_DEVICE_TO_QUERY = os.environ.get("RD_OPTION_DEVICES", "All")
 
 
 def device_filter(domain):
