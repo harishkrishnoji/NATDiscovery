@@ -98,7 +98,7 @@ class CP_NAT_Function:
             "TranslatedDestination": self._convert_to_str(self.rulebase_objects.get(rule.get("translated-destination"))),
             "Firewall": f"CheckPoint[{self.env.upper()}]",
             "FirewallName": self.target,
-            "Policy": self.package,
+            # "Policy": self.package,
         }
         return nat_rule
 
