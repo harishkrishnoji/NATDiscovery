@@ -26,7 +26,12 @@ class GitLab_Client:
             with open(lfilepath, "r") as my_file:
                 file_content = my_file.read()
             file.content = file_content
-            resp = file.save(branch=self.branch, commit_message=f"Update {self.filepath}")
+            resp = file.save(
+                branch=self.branch,
+                commit_message=f"Update {self.filepath}",
+                author_email="harish.krishnoji@fiserv.com",
+                author_name="Harish Krishnoji",
+            )
             return resp
         else:
             self.create_file(lfilepath)
